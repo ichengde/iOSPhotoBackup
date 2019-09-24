@@ -12,6 +12,7 @@ import Photos
 class ViewController: UIViewController {
     var assetCount:Int = 0
     
+    var startCount = 0
     var allPhotos : PHFetchResult<PHAsset>?
     
     @IBOutlet var display: UITextView!
@@ -28,7 +29,8 @@ class ViewController: UIViewController {
                 let fetchOptions = PHFetchOptions()
                 self.allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
                 self.assetCount = self.allPhotos!.countOfAssets(with: .image)
-                self.readOne(indexNumber: 0)
+                
+                self.getCurrentCount();
                 
             case .denied, .restricted:
                 print("not allowed")
@@ -60,6 +62,7 @@ class ViewController: UIViewController {
                 iData = kk!.jpegData(compressionQuality: 1)
             }
             
+            
             self.sendOne(dataString:iData!.base64EncodedData(),name:String(indexNumber))
             
         }
@@ -71,7 +74,37 @@ class ViewController: UIViewController {
         
     }
     
-    
+    func getCurrentCount() {
+        
+        let url = URL(string: "http://10.0.0.107:6868/photo")!
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "GET"
+        
+        
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data,
+                let response = response as? HTTPURLResponse,
+                error == nil else {                                              // check for fundamental networking error
+                    print("error", error ?? "Unknown error")
+                    return
+            }
+            
+            guard (200 ... 299) ~= response.statusCode else {                    // check for http errors
+                print("statusCode should be 2xx, but is \(response.statusCode)")
+                print("response = \(response)")
+                return
+            }
+            
+            let existCountString = String(data: data, encoding: .utf8)
+            let r = Int(existCountString!)
+            self.readOne(indexNumber:r!)
+            
+        }
+        
+        task.resume()
+    }
     
     // too large
     func sendOne(dataString:Data,name:String) {
