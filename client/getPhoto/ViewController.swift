@@ -15,6 +15,8 @@ class ViewController: UIViewController {
     var startCount = 0
     var allPhotos : PHFetchResult<PHAsset>?
     
+    var allVideos : PHFetchResult<PHAsset>?
+    
     @IBOutlet var display: UITextView!
     
     
@@ -28,9 +30,13 @@ class ViewController: UIViewController {
                 
                 let fetchOptions = PHFetchOptions()
                 self.allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+                
                 self.assetCount = self.allPhotos!.countOfAssets(with: .image)
                 
-                self.getCurrentCount();
+                self.readOne(indexNumber: 0)
+                
+                self.allVideos = PHAsset.fetchAssets(with: .video, options: fetchOptions)
+                //self.calcVideo();
                 
             case .denied, .restricted:
                 print("not allowed")
@@ -47,6 +53,28 @@ class ViewController: UIViewController {
     }
     
     
+    
+    func calcVideo() {
+        print("video count", String(self.allVideos!.count))
+        for didi in 1...(self.allVideos!.count-1) {
+            print(didi)
+            let video = self.allVideos!.object(at: didi)
+            
+            let pHVideoRequestOptions = PHVideoRequestOptions()
+            
+            PHImageManager().requestAVAsset(forVideo:video, options: pHVideoRequestOptions) { (avAsset: AVAsset?, aVAudioMix:AVAudioMix?, dict:[AnyHashable : Any]?) in
+                
+                for aa in avAsset!.commonMetadata {
+                    if (aa.commonKey == AVMetadataKey.init("creationDate")) {
+                        print(aa.stringValue)
+                    }
+                    
+                }
+
+            }
+        }
+    }
+ 
     func readOne(indexNumber: Int) {
         
         let a = self.allPhotos!.object(at: indexNumber)
@@ -59,11 +87,13 @@ class ViewController: UIViewController {
             var iData = data
             if (imageString == "public.heic") {
                 let kk = UIImage(data: data!)
+                
                 iData = kk!.jpegData(compressionQuality: 1)
+                
             }
             
             
-            self.sendOne(dataString:iData!.base64EncodedData(),name:String(indexNumber))
+            self.sendOne( data:iData!.base64EncodedData(),name:String(indexNumber))
             
         }
         
@@ -99,7 +129,7 @@ class ViewController: UIViewController {
             
             let existCountString = String(data: data, encoding: .utf8)
             let r = Int(existCountString!)
-            self.readOne(indexNumber:r!)
+             self.readOne(indexNumber:r!)
             
         }
         
@@ -107,22 +137,15 @@ class ViewController: UIViewController {
     }
     
     // too large
-    func sendOne(dataString:Data,name:String) {
-        
-        let url = URL(string: "http://10.0.0.107:6868/photo")!
+    func sendOne(data:Data,name:String) {
+        print("send one")
+        let url = URL(string: "http://10.0.0.107:6868/photo?name=" + name)!
         var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
         request.httpMethod = "POST"
-        let parameters: [String: Any] = [
-            "data": String(data:dataString,encoding: String.Encoding.utf8),
-            "name":name
-        ]
+      
+        request.httpBody = data
         
-        do {
-        request.httpBody = try JSONSerialization.data(withJSONObject: parameters, options: .prettyPrinted)
-        } catch let e {
-            print(e.localizedDescription)
-        }
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             guard let data = data,
                 let response = response as? HTTPURLResponse,
@@ -147,9 +170,9 @@ class ViewController: UIViewController {
             }
             
             
-            if (doneCount! < self.assetCount) {
-                self.readOne(indexNumber: doneCount!+1)
-            }
+//            if (doneCount! < self.assetCount) {
+//                self.readOne(indexNumber: doneCount!+1)
+//            }
         }
         
         task.resume()
